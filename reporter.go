@@ -10,6 +10,7 @@ var (
 	warnStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("192")).Bold(true)
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("204")).Bold(true)
 	citeStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true)
+	okStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true)
 )
 
 func severityStyle(sev string) string {
@@ -34,7 +35,7 @@ func (r *Reporter) Print() {
 	for _, res := range r.results {
 		if len(res.Issues) == 0 {
 			if r.verbose {
-				fmt.Printf("[ OK ] %s (%s)\n", citeStyle.Render(res.CiteName), res.DOI)
+				fmt.Printf("[%s] %s (%s)\n", okStyle.Render(" OK "), citeStyle.Render(res.CiteName), res.DOI)
 			}
 			continue
 		}
