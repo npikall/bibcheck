@@ -128,7 +128,8 @@ func checkDOIWithRetry(config *Config, doi string) []Issue {
 }
 
 func checkDOI(c *Config, doi string) httpResult {
-	req, err := http.NewRequest(http.MethodHead, "https://api.crossref.org/works/"+doi, nil)
+	url := "https://api.crossref.org/works/" + doi
+	req, err := http.NewRequest(http.MethodHead, url, nil)
 	if err != nil {
 		return httpResult{err: fmt.Errorf("build request: %w", err)}
 	}
@@ -152,11 +153,11 @@ func checkURLWithRetry(c *Config, rawURL string) []Issue {
 		}
 	}
 	switch {
-	case res.statusCode >= 200 && res.statusCode < 300:
+	case res.statusCode >= http.StatusOK && res.statusCode < http.StatusMultipleChoices:
 		return nil
-	case res.statusCode >= 400 && res.statusCode < 500:
+	case res.statusCode >= http.StatusBadRequest && res.statusCode < http.StatusInternalServerError:
 		return []Issue{{Kind: IssueURLDead, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
-	case res.statusCode >= 500:
+	case res.statusCode >= http.StatusInternalServerError:
 		return []Issue{{Kind: IssueURLError, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
 	default:
 		return []Issue{{Kind: IssueURLDead, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
@@ -164,36 +165,38 @@ func checkURLWithRetry(c *Config, rawURL string) []Issue {
 }
 
 func checkURL(c *Config, rawURL string) httpResult {
-	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
+	res := makeRequest(c, http.MethodHead, rawURL)
+	if res.statusCode == http.StatusMethodNotAllowed || res.statusCode == http.StatusForbidden {
+		return makeRequest(c, http.MethodGet, rawURL)
+	}
+	return res
+}
+
+func makeRequest(c *Config, method string, url string) httpResult {
+	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return httpResult{err: fmt.Errorf("build request: %w", err)}
 	}
+
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return httpResult{err: fmt.Errorf("http: %w", err)}
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode == http.StatusForbidden {
-		req, err = http.NewRequest(http.MethodGet, rawURL, nil)
-		if err != nil {
-			return httpResult{err: fmt.Errorf("build request: %w", err)}
-		}
-		resp2, err := c.client.Do(req)
-		if err != nil {
-			return httpResult{err: fmt.Errorf("http: %w", err)}
-		}
-		defer resp2.Body.Close()
-		return httpResult{statusCode: resp2.StatusCode}
-	}
+
 	return httpResult{statusCode: resp.StatusCode}
 }
 
-func processBibEntries(config *Config, entries []*bibtex.BibEntry) chan EntryResult {
-	numWorkers := min(config.nWorker, runtime.NumCPU())
-	numJobs := len(entries)
+// Parser converts a bibliography file into jobs for the processing pipeline.
+type Parser interface {
+	Parse(file string) ([]job, error)
+}
 
-	jobCh := make(chan job, numJobs)
-	resCh := make(chan EntryResult, numJobs)
+func processJobs(config *Config, jobs []job) chan EntryResult {
+	numWorkers := min(config.nWorker, runtime.NumCPU())
+
+	jobCh := make(chan job, len(jobs))
+	resCh := make(chan EntryResult, len(jobs))
 
 	var wg sync.WaitGroup
 	for range numWorkers {
@@ -206,30 +209,9 @@ func processBibEntries(config *Config, entries []*bibtex.BibEntry) chan EntryRes
 		close(resCh)
 	}()
 
-	for _, entry := range entries {
-		processEntry(jobCh, entry)
+	for _, j := range jobs {
+		jobCh <- j
 	}
 	close(jobCh)
 	return resCh
-}
-
-func processEntry(jobCh chan<- job, entry *bibtex.BibEntry) {
-	j := job{citeName: entry.CiteName}
-
-	if doiField, found := entry.Fields["doi"]; found {
-		doi := normalizeDOI(doiField.String())
-		if doi == "" {
-			j.localIssues = append(j.localIssues, Issue{Kind: IssueInvalidDOI, Message: "empty after normalization"})
-		} else {
-			j.doi = doi
-		}
-	} else {
-		j.localIssues = append(j.localIssues, Issue{Kind: IssueNoDOI})
-	}
-
-	if urlField, found := entry.Fields["url"]; found {
-		j.url = strings.TrimSpace(urlField.String())
-	}
-
-	jobCh <- j
 }
