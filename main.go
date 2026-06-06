@@ -16,16 +16,18 @@ type Config struct {
 	email      string
 	verbose    bool
 	checkURLs  bool
+	verify     bool
 	nWorker    int
 	maxRetries int
 }
 
-func NewConfig(email string, verbose bool, checkURLs bool, n int, maxRetries int) *Config {
+func NewConfig(email string, verbose bool, checkURLs bool, verify bool, n int, maxRetries int) *Config {
 	return &Config{
 		client:     &http.Client{Timeout: 5 * time.Second}, //nolint: mnd
 		email:      email,
 		verbose:    verbose,
 		checkURLs:  checkURLs,
+		verify:     verify,
 		nWorker:    n,
 		maxRetries: maxRetries,
 	}
@@ -37,9 +39,15 @@ func main() {
 	nWorker := flag.Int("n", 1, "Number of workers for concurrent processing")
 	verbose := flag.Bool("v", false, "Produce verbose output")
 	checkURLs := flag.Bool("urls", true, "Check URLs in bibliography entries")
+	verify := flag.Bool("verify", false, "Verify title, author, and year against Crossref metadata")
 	maxRetries := flag.Int("retry", 3, "Max retries when fetching DOI data on rate limit (429)") //nolint: mnd
 	flag.Parse()
-	config := NewConfig(*email, *verbose, *checkURLs, *nWorker, *maxRetries)
+
+	if *verify && *email == "" {
+		fmt.Fprintln(os.Stderr, "hint: running -verify without -email may hit Crossref rate limits; consider adding -email <your@email.com>")
+	}
+
+	config := NewConfig(*email, *verbose, *checkURLs, *verify, *nWorker, *maxRetries)
 
 	file := resolveArgs()
 	ext := filepath.Ext(file)
