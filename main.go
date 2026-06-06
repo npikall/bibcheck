@@ -70,7 +70,13 @@ func main() {
 }
 
 func processFile(file string, parser Parser, config *Config) error {
-	jobs, err := parser.Parse(file)
+	f, err := os.Open(file) //nolint:gosec
+	if err != nil {
+		return fmt.Errorf("open %s: %w", file, err)
+	}
+	defer func() { _ = f.Close() }()
+
+	jobs, err := parser.Parse(f)
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", file, err)
 	}
@@ -78,7 +84,7 @@ func processFile(file string, parser Parser, config *Config) error {
 	spinner := &Spinner{}
 	spinner.Start(len(jobs))
 
-	reporter := &Reporter{verbose: config.verbose}
+	reporter := &Reporter{w: os.Stdout, verbose: config.verbose}
 	resCh := processJobs(config, jobs)
 	for res := range resCh {
 		spinner.Increment()

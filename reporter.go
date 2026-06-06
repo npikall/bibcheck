@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 
 	"charm.land/lipgloss/v2"
 )
@@ -26,6 +27,7 @@ func severityStyle(sev string) string {
 }
 
 type Reporter struct {
+	w       io.Writer
 	results []EntryResult
 	verbose bool
 }
@@ -38,7 +40,7 @@ func (r *Reporter) Print() {
 	for _, res := range r.results {
 		if len(res.Issues) == 0 {
 			if r.verbose {
-				fmt.Printf("[%s] %s (%s)\n", okStyle.Render(" OK "), citeStyle.Render(res.CiteName), res.DOI)
+				fmt.Fprintf(r.w, "[%s] %s (%s)\n", okStyle.Render(" OK "), citeStyle.Render(res.CiteName), res.DOI)
 			}
 			continue
 		}
@@ -59,28 +61,28 @@ func (r *Reporter) printIssue(cite string, res EntryResult, issue Issue) {
 	ref := issueRef(res, issue)
 
 	if issue.Kind == IssueDiff {
-		fmt.Printf("[%s] %s %s (%s):\n%s\n", sev, cite, issue.Message, ref, issue.Detail)
+		fmt.Fprintf(r.w, "[%s] %s %s (%s):\n%s\n", sev, cite, issue.Message, ref, issue.Detail)
 		return
 	}
 
 	if isURLIssue(issue.Kind) {
 		if issue.Message != "" {
-			fmt.Printf("[%s] %s %s: %s\n         url: %s\n", sev, cite, issue.Kind, issue.Message, ref)
+			fmt.Fprintf(r.w, "[%s] %s %s: %s\n         url: %s\n", sev, cite, issue.Kind, issue.Message, ref)
 		} else {
-			fmt.Printf("[%s] %s %s\n         url: %s\n", sev, cite, issue.Kind, ref)
+			fmt.Fprintf(r.w, "[%s] %s %s\n         url: %s\n", sev, cite, issue.Kind, ref)
 		}
 		return
 	}
 
 	switch {
 	case ref != "" && issue.Message != "":
-		fmt.Printf("[%s] %s %s (%s): %s\n", sev, cite, issue.Kind, ref, issue.Message)
+		fmt.Fprintf(r.w, "[%s] %s %s (%s): %s\n", sev, cite, issue.Kind, ref, issue.Message)
 	case ref != "":
-		fmt.Printf("[%s] %s %s (%s)\n", sev, cite, issue.Kind, ref)
+		fmt.Fprintf(r.w, "[%s] %s %s (%s)\n", sev, cite, issue.Kind, ref)
 	case issue.Message != "":
-		fmt.Printf("[%s] %s %s: %s\n", sev, cite, issue.Kind, issue.Message)
+		fmt.Fprintf(r.w, "[%s] %s %s: %s\n", sev, cite, issue.Kind, issue.Message)
 	default:
-		fmt.Printf("[%s] %s %s\n", sev, cite, issue.Kind)
+		fmt.Fprintf(r.w, "[%s] %s %s\n", sev, cite, issue.Kind)
 	}
 }
 
@@ -130,5 +132,5 @@ func (r *Reporter) printSummary() {
 	if diffs > 0 {
 		line += ", " + diffStyle.Render(fmt.Sprintf("%d diff(s)", diffs))
 	}
-	fmt.Println(line)
+	fmt.Fprintln(r.w, line)
 }

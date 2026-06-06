@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -102,20 +102,10 @@ type hayagrivaEntry struct {
 
 type YAMLParser struct{}
 
-func (p *YAMLParser) Parse(file string) (_ []job, err error) {
-	f, err := os.Open(file) //nolint:gosec
-	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", file, err)
-	}
-	defer func() {
-		if cerr := f.Close(); cerr != nil && err == nil {
-			err = cerr
-		}
-	}()
-
+func (p *YAMLParser) Parse(r io.Reader) (_ []job, err error) {
 	var entries map[string]hayagrivaEntry
-	if err := yaml.NewDecoder(f).Decode(&entries); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", file, err)
+	if err := yaml.NewDecoder(r).Decode(&entries); err != nil {
+		return nil, fmt.Errorf("parse yaml: %w", err)
 	}
 
 	jobs := make([]job, 0, len(entries))

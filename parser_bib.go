@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/nickng/bibtex"
@@ -10,20 +10,10 @@ import (
 
 type BibParser struct{}
 
-func (p *BibParser) Parse(file string) (_ []job, err error) { //nolint:cyclop
-	f, err := os.Open(file) //nolint:gosec
+func (p *BibParser) Parse(r io.Reader) (_ []job, err error) { //nolint:cyclop
+	bib, err := bibtex.Parse(r)
 	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", file, err)
-	}
-	defer func() {
-		if cerr := f.Close(); cerr != nil && err == nil {
-			err = cerr
-		}
-	}()
-
-	bib, err := bibtex.Parse(f)
-	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", file, err)
+		return nil, fmt.Errorf("parse bib: %w", err)
 	}
 
 	jobs := make([]job, 0, len(bib.Entries))

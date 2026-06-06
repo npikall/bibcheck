@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"runtime"
 	"slices"
@@ -469,9 +470,9 @@ func checkMetadata(config *Config, j job) []Issue {
 	return issues
 }
 
-// Parser converts a bibliography file into jobs for the processing pipeline.
+// Parser converts a bibliography source into jobs for the processing pipeline.
 type Parser interface {
-	Parse(file string) ([]job, error)
+	Parse(r io.Reader) ([]job, error)
 }
 
 func processJobs(config *Config, jobs []job) chan EntryResult {
