@@ -13,18 +13,32 @@ func (r *Reporter) Collect(res EntryResult) {
 
 func (r *Reporter) Print() {
 	for _, res := range r.results {
-		if res.Issue == nil {
+		if len(res.Issues) == 0 {
 			if r.verbose {
 				fmt.Printf("[ OK ] %s (%s)\n", res.CiteName, res.DOI)
 			}
 			continue
 		}
-		sev := res.Issue.Kind.severity()
-		if res.DOI != "" {
-			fmt.Printf("[%-4s] %s (%s): %s: %s\n",
-				sev, res.CiteName, res.DOI, res.Issue.Kind, res.Issue.Message)
-		} else {
-			fmt.Printf("[%-4s] %s: %s\n", sev, res.CiteName, res.Issue.Kind)
+		for _, issue := range res.Issues {
+			sev := issue.Kind.severity()
+			var ref string
+			switch issue.Kind {
+			case IssueURLDead, IssueURLError:
+				ref = res.URL
+			case IssueNoDOI, IssueInvalidDOI:
+				ref = ""
+			default:
+				ref = res.DOI
+			}
+			if ref != "" && issue.Message != "" {
+				fmt.Printf("[%-4s] %s (%s): %s: %s\n", sev, res.CiteName, ref, issue.Kind, issue.Message)
+			} else if ref != "" {
+				fmt.Printf("[%-4s] %s (%s): %s\n", sev, res.CiteName, ref, issue.Kind)
+			} else if issue.Message != "" {
+				fmt.Printf("[%-4s] %s: %s: %s\n", sev, res.CiteName, issue.Kind, issue.Message)
+			} else {
+				fmt.Printf("[%-4s] %s: %s\n", sev, res.CiteName, issue.Kind)
+			}
 		}
 	}
 	r.printSummary()
@@ -32,18 +46,20 @@ func (r *Reporter) Print() {
 
 func (r *Reporter) printSummary() {
 	total := len(r.results)
-	var warns, errs int
+	var warns, errs, withIssues int
 	for _, res := range r.results {
-		if res.Issue == nil {
-			continue
+		if len(res.Issues) > 0 {
+			withIssues++
 		}
-		if res.Issue.Kind.severity() == "WARN" {
-			warns++
-		} else {
-			errs++
+		for _, issue := range res.Issues {
+			if issue.Kind.severity() == "WARN" {
+				warns++
+			} else {
+				errs++
+			}
 		}
 	}
-	ok := total - warns - errs
+	ok := total - withIssues
 	fmt.Printf("\nChecked %d entries: %d OK, %d warning(s), %d error(s)\n",
 		total, ok, warns, errs)
 }

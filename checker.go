@@ -18,6 +18,8 @@ const (
 	IssueInvalidDOI
 	IssueDOINotFound
 	IssueNetworkError
+	IssueURLDead
+	IssueURLError
 )
 
 var IssueName = map[IssueKind]string{
@@ -25,6 +27,8 @@ var IssueName = map[IssueKind]string{
 	IssueInvalidDOI:   "invalid DOI",
 	IssueDOINotFound:  "DOI not found",
 	IssueNetworkError: "network error",
+	IssueURLDead:      "URL dead",
+	IssueURLError:     "URL server error",
 }
 
 func (k IssueKind) String() string {
@@ -36,10 +40,12 @@ func (k IssueKind) String() string {
 }
 
 func (k IssueKind) severity() string {
-	if k == IssueNoDOI {
+	switch k {
+	case IssueNoDOI, IssueURLError:
 		return "WARN"
+	default:
+		return "ERRO"
 	}
-	return "ERRO"
 }
 
 type Issue struct {
@@ -55,12 +61,15 @@ type httpResult struct {
 type EntryResult struct {
 	CiteName string
 	DOI      string
-	Issue    *Issue
+	URL      string
+	Issues   []Issue
 }
 
 type job struct {
-	citeName string
-	doi      string
+	citeName    string
+	doi         string
+	url         string
+	localIssues []Issue
 }
 
 func normalizeDOI(doi string) string {
@@ -72,40 +81,42 @@ func normalizeDOI(doi string) string {
 
 func worker(config *Config, jobCh <-chan job, resCh chan<- EntryResult) {
 	for j := range jobCh {
-		resCh <- checkDOIWithRetry(config, j)
+		resCh <- processJob(config, j)
 	}
 }
 
-func checkDOIWithRetry(config *Config, j job) EntryResult {
+func processJob(config *Config, j job) EntryResult {
+	issues := append([]Issue{}, j.localIssues...)
+
+	if j.doi != "" {
+		issues = append(issues, checkDOIWithRetry(config, j.doi)...)
+	}
+
+	if j.url != "" {
+		issues = append(issues, checkURLWithRetry(config, j.url)...)
+	}
+
+	return EntryResult{CiteName: j.citeName, DOI: j.doi, URL: j.url, Issues: issues}
+}
+
+func checkDOIWithRetry(config *Config, doi string) []Issue {
 	backoff := 100 * time.Millisecond
 	for {
-		res := checkDOI(config, j.doi)
+		res := checkDOI(config, doi)
 		if res.err != nil {
-			return EntryResult{
-				CiteName: j.citeName,
-				DOI:      j.doi,
-				Issue:    &Issue{Kind: IssueNetworkError, Message: res.err.Error()},
-			}
+			return []Issue{{Kind: IssueNetworkError, Message: res.err.Error()}}
 		}
 		switch res.statusCode {
 		case http.StatusOK:
-			return EntryResult{CiteName: j.citeName, DOI: j.doi}
+			return nil
 		case http.StatusTooManyRequests:
 			time.Sleep(backoff)
 			backoff *= 2
 			continue
 		case http.StatusNotFound:
-			return EntryResult{
-				CiteName: j.citeName,
-				DOI:      j.doi,
-				Issue:    &Issue{Kind: IssueDOINotFound, Message: "HTTP 404"},
-			}
+			return []Issue{{Kind: IssueDOINotFound, Message: "HTTP 404"}}
 		default:
-			return EntryResult{
-				CiteName: j.citeName,
-				DOI:      j.doi,
-				Issue:    &Issue{Kind: IssueDOINotFound, Message: fmt.Sprintf("HTTP %d", res.statusCode)},
-			}
+			return []Issue{{Kind: IssueDOINotFound, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
 		}
 	}
 }
@@ -123,6 +134,51 @@ func checkDOI(c *Config, doi string) httpResult {
 		return httpResult{err: fmt.Errorf("http: %w", err)}
 	}
 	defer resp.Body.Close()
+	return httpResult{statusCode: resp.StatusCode}
+}
+
+func checkURLWithRetry(c *Config, rawURL string) []Issue {
+	res := checkURL(c, rawURL)
+	if res.err != nil {
+		res = checkURL(c, rawURL)
+		if res.err != nil {
+			return []Issue{{Kind: IssueNetworkError, Message: res.err.Error()}}
+		}
+	}
+	switch {
+	case res.statusCode >= 200 && res.statusCode < 300:
+		return nil
+	case res.statusCode >= 400 && res.statusCode < 500:
+		return []Issue{{Kind: IssueURLDead, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
+	case res.statusCode >= 500:
+		return []Issue{{Kind: IssueURLError, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
+	default:
+		return []Issue{{Kind: IssueURLDead, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
+	}
+}
+
+func checkURL(c *Config, rawURL string) httpResult {
+	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
+	if err != nil {
+		return httpResult{err: fmt.Errorf("build request: %w", err)}
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return httpResult{err: fmt.Errorf("http: %w", err)}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode == http.StatusForbidden {
+		req, err = http.NewRequest(http.MethodGet, rawURL, nil)
+		if err != nil {
+			return httpResult{err: fmt.Errorf("build request: %w", err)}
+		}
+		resp2, err := c.client.Do(req)
+		if err != nil {
+			return httpResult{err: fmt.Errorf("http: %w", err)}
+		}
+		defer resp2.Body.Close()
+		return httpResult{statusCode: resp2.StatusCode}
+	}
 	return httpResult{statusCode: resp.StatusCode}
 }
 
@@ -145,28 +201,29 @@ func processBibEntries(config *Config, entries []*bibtex.BibEntry) chan EntryRes
 	}()
 
 	for _, entry := range entries {
-		processEntry(jobCh, resCh, entry)
+		processEntry(jobCh, entry)
 	}
 	close(jobCh)
 	return resCh
 }
 
-func processEntry(jobCh chan<- job, resCh chan<- EntryResult, entry *bibtex.BibEntry) {
-	doiField, found := entry.Fields["doi"]
-	if !found {
-		resCh <- EntryResult{
-			CiteName: entry.CiteName,
-			Issue:    &Issue{Kind: IssueNoDOI},
+func processEntry(jobCh chan<- job, entry *bibtex.BibEntry) {
+	j := job{citeName: entry.CiteName}
+
+	if doiField, found := entry.Fields["doi"]; found {
+		doi := normalizeDOI(doiField.String())
+		if doi == "" {
+			j.localIssues = append(j.localIssues, Issue{Kind: IssueInvalidDOI, Message: "empty after normalization"})
+		} else {
+			j.doi = doi
 		}
-		return
+	} else {
+		j.localIssues = append(j.localIssues, Issue{Kind: IssueNoDOI})
 	}
-	doi := normalizeDOI(doiField.String())
-	if doi == "" {
-		resCh <- EntryResult{
-			CiteName: entry.CiteName,
-			Issue:    &Issue{Kind: IssueInvalidDOI, Message: "empty after normalization"},
-		}
-		return
+
+	if urlField, found := entry.Fields["url"]; found {
+		j.url = strings.TrimSpace(urlField.String())
 	}
-	jobCh <- job{citeName: entry.CiteName, doi: doi}
+
+	jobCh <- j
 }
