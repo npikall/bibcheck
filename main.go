@@ -12,18 +12,20 @@ import (
 )
 
 type Config struct {
-	client  *http.Client
-	email   string
-	verbose bool
-	nWorker int
+	client     *http.Client
+	email      string
+	verbose    bool
+	nWorker    int
+	maxRetries int
 }
 
-func NewConfig(email string, verbose bool, n int) *Config {
+func NewConfig(email string, verbose bool, n int, maxRetries int) *Config {
 	return &Config{
-		client:  &http.Client{Timeout: 5 * time.Second},
-		email:   email,
-		verbose: verbose,
-		nWorker: n,
+		client:     &http.Client{Timeout: 5 * time.Second}, //nolint: mnd
+		email:      email,
+		verbose:    verbose,
+		nWorker:    n,
+		maxRetries: maxRetries,
 	}
 }
 
@@ -32,8 +34,9 @@ func main() {
 	email := flag.String("email", "", "An email to get better rate limits from Crossref API")
 	nWorker := flag.Int("n", 1, "Number of workers for concurrent processing")
 	verbose := flag.Bool("v", false, "Produce verbose output")
+	maxRetries := flag.Int("retry", 3, "Max retries when fetching DOI data on rate limit (429)") //nolint: mnd
 	flag.Parse()
-	config := NewConfig(*email, *verbose, *nWorker)
+	config := NewConfig(*email, *verbose, *nWorker, *maxRetries)
 
 	file := resolveArgs()
 	ext := filepath.Ext(file)

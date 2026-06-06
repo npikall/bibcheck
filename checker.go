@@ -100,8 +100,8 @@ func processJob(config *Config, j job) EntryResult {
 }
 
 func checkDOIWithRetry(config *Config, doi string) []Issue {
-	backoff := 100 * time.Millisecond
-	for {
+	backoff := 100 * time.Millisecond //nolint: mnd
+	for attempt := range config.maxRetries {
 		res := checkDOI(config, doi)
 		if res.err != nil {
 			return []Issue{{Kind: IssueNetworkError, Message: res.err.Error()}}
@@ -110,15 +110,18 @@ func checkDOIWithRetry(config *Config, doi string) []Issue {
 		case http.StatusOK:
 			return nil
 		case http.StatusTooManyRequests:
+			if attempt == config.maxRetries {
+				return []Issue{{Kind: IssueNetworkError, Message: fmt.Sprintf("rate limited after %d retries", config.maxRetries)}}
+			}
 			time.Sleep(backoff)
 			backoff *= 2
-			continue
 		case http.StatusNotFound:
 			return []Issue{{Kind: IssueDOINotFound, Message: "HTTP 404"}}
 		default:
 			return []Issue{{Kind: IssueDOINotFound, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
 		}
 	}
+	return []Issue{{Kind: IssueNetworkError, Message: fmt.Sprintf("rate limited after %d retries", config.maxRetries)}}
 }
 
 func checkDOI(c *Config, doi string) httpResult {
