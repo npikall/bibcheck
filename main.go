@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -14,96 +14,236 @@ import (
 	"github.com/nickng/bibtex"
 )
 
-type Client struct {
-	client *http.Client
-	email  string
+type Config struct {
+	client  *http.Client
+	email   string
+	verbose bool
+	nWorker int
 }
 
-type Result struct {
-	status     string
+type IssueKind int
+
+const (
+	IssueNoDOI IssueKind = iota
+	IssueInvalidDOI
+	IssueDOINotFound
+	IssueNetworkError
+)
+
+var IssueName = map[IssueKind]string{
+	IssueNoDOI:        "no DOI field",
+	IssueInvalidDOI:   "invalid DOI",
+	IssueDOINotFound:  "DOI not found",
+	IssueNetworkError: "network error",
+}
+
+func (k IssueKind) String() string {
+	msg, found := IssueName[k]
+	if !found {
+		return "unknown issue"
+	}
+	return msg
+}
+
+func (k IssueKind) severity() string {
+	if k == IssueNoDOI {
+		return "WARN"
+	}
+	return "ERRO"
+}
+
+type Issue struct {
+	Kind    IssueKind
+	Message string
+}
+
+type httpResult struct {
 	statusCode int
+	err        error
+}
+
+type EntryResult struct {
+	CiteName string
+	DOI      string
+	Issue    *Issue
+}
+
+type job struct {
+	citeName string
+	doi      string
+}
+
+type Reporter struct {
+	results []EntryResult
+	verbose bool
+}
+
+func (r *Reporter) Collect(res EntryResult) {
+	r.results = append(r.results, res)
+}
+
+func (r *Reporter) Print() {
+	for _, res := range r.results {
+		if res.Issue == nil {
+			if r.verbose {
+				fmt.Printf("[ OK ] %s (%s)\n", res.CiteName, res.DOI)
+			}
+			continue
+		}
+		sev := res.Issue.Kind.severity()
+		if res.DOI != "" {
+			fmt.Printf("[%-4s] %s (%s): %s: %s\n",
+				sev, res.CiteName, res.DOI, res.Issue.Kind, res.Issue.Message)
+		} else {
+			fmt.Printf("[%-4s] %s: %s\n", sev, res.CiteName, res.Issue.Kind)
+		}
+	}
+	r.printSummary()
+}
+
+func (r *Reporter) printSummary() {
+	total := len(r.results)
+	var warns, errs int
+	for _, res := range r.results {
+		if res.Issue == nil {
+			continue
+		}
+		if res.Issue.Kind.severity() == "WARN" {
+			warns++
+		} else {
+			errs++
+		}
+	}
+	ok := total - warns - errs
+	fmt.Printf("\nChecked %d entries: %d OK, %d warning(s), %d error(s)\n",
+		total, ok, warns, errs)
 }
 
 func main() {
 	email := flag.String("email", "", "An email to get better rate limits from Crossref API")
+	nWorker := flag.Int("n", 1, "Number of workers for concurrent processing")
+	verbose := flag.Bool("v", false, "Produce verbose output")
 	flag.Parse()
+	config := NewConfig(*email, *verbose, *nWorker)
 
-	file := getFilePath()
-	bib := parseBibFile(file)
-
-	client := NewClient(*email)
-	resCh := processData(client, bib.Entries)
-
-	for result := range resCh {
-		fmt.Println(result)
+	file := resolveArgs()
+	ext := filepath.Ext(file)
+	switch ext {
+	case ".yml", ".yaml":
+		fmt.Fprintln(os.Stderr, "yaml not yet supported")
+		os.Exit(1)
+	case ".bib":
+		if err := processBibFile(file, config); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	default:
+		fmt.Fprintln(os.Stderr, "unknown file extension:", ext)
+		os.Exit(1)
 	}
 }
 
-func getFilePath() string {
-	file := "refs.bib"
-	if flag.NArg() > 1 {
-		file = flag.Arg(0)
+func processBibFile(file string, config *Config) error {
+	bib, err := parseBibFile(file)
+	if err != nil {
+		return err
 	}
-	return file
+
+	reporter := &Reporter{verbose: config.verbose}
+	resCh := processBibEntries(config, bib.Entries)
+	for res := range resCh {
+		reporter.Collect(res)
+	}
+	reporter.Print()
+	return nil
 }
 
-func worker(client *Client, doiCh <-chan string, resCh chan<- string) {
-	for doi := range doiCh {
-		resCh <- checkDOIWithRetry(client, doi)
+func resolveArgs() string {
+	if flag.Arg(0) == "help" || flag.NArg() == 0 {
+		fmt.Fprintln(os.Stderr, "bibcheck [-email string][-n int] <file>")
+		fmt.Fprintln(os.Stderr, "")
+		flag.Usage()
+		os.Exit(1)
+	}
+	return flag.Arg(0)
+}
+
+func worker(config *Config, jobCh <-chan job, resCh chan<- EntryResult) {
+	for j := range jobCh {
+		resCh <- checkDOIWithRetry(config, j)
 	}
 }
 
-func checkDOIWithRetry(client *Client, doi string) string {
-	backoff := 500 * time.Millisecond
+func checkDOIWithRetry(config *Config, j job) EntryResult {
+	backoff := 100 * time.Millisecond
 	for {
-		res := checkDOI(client, doi)
-		if res.statusCode == http.StatusTooManyRequests {
+		res := checkDOI(config, j.doi)
+		if res.err != nil {
+			return EntryResult{
+				CiteName: j.citeName,
+				DOI:      j.doi,
+				Issue:    &Issue{Kind: IssueNetworkError, Message: res.err.Error()},
+			}
+		}
+		switch res.statusCode {
+		case http.StatusOK:
+			return EntryResult{CiteName: j.citeName, DOI: j.doi}
+		case http.StatusTooManyRequests:
 			time.Sleep(backoff)
 			backoff *= 2
 			continue
+		case http.StatusNotFound:
+			return EntryResult{
+				CiteName: j.citeName,
+				DOI:      j.doi,
+				Issue:    &Issue{Kind: IssueDOINotFound, Message: "HTTP 404"},
+			}
+		default:
+			return EntryResult{
+				CiteName: j.citeName,
+				DOI:      j.doi,
+				Issue:    &Issue{Kind: IssueDOINotFound, Message: fmt.Sprintf("HTTP %d", res.statusCode)},
+			}
 		}
-		if res.statusCode != http.StatusOK {
-			return fmt.Sprintf("[BAD] request %s: %s", doi, res.status)
-		}
-		return fmt.Sprintf("[OK] %s", doi)
 	}
 }
 
-func checkDOI(c *Client, doi string) *Result {
-	req, err := http.NewRequest(http.MethodHead, "https://api.crossref.org/works/doi"+doi, nil)
+func checkDOI(c *Config, doi string) httpResult {
+	req, err := http.NewRequest(http.MethodHead, "https://api.crossref.org/works/"+doi, nil)
 	if err != nil {
-		return nil
+		return httpResult{err: fmt.Errorf("build request: %w", err)}
 	}
 	if c.email != "" {
 		req.Header.Set("User-Agent", fmt.Sprintf("bibcheck/1.0 (mailto:%s)", c.email))
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil
+		return httpResult{err: fmt.Errorf("http: %w", err)}
 	}
 	defer resp.Body.Close()
-
-	return &Result{status: resp.Status, statusCode: resp.StatusCode}
+	return httpResult{statusCode: resp.StatusCode}
 }
 
-func NewClient(email string) *Client {
-	return &Client{
-		client: &http.Client{Timeout: 5 * time.Second},
-		email:  email,
+func NewConfig(email string, verbose bool, n int) *Config {
+	return &Config{
+		client:  &http.Client{Timeout: 5 * time.Second},
+		email:   email,
+		verbose: verbose,
+		nWorker: n,
 	}
 }
 
-func parseBibFile(file string) *bibtex.BibTex {
+func parseBibFile(file string) (*bibtex.BibTex, error) {
 	f, err := os.Open(file)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("open %s: %w", file, err)
 	}
-
+	defer f.Close()
 	bib, err := bibtex.Parse(f)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("parse %s: %w", file, err)
 	}
-	return bib
+	return bib, nil
 }
 
 func normalizeDOI(doi string) string {
@@ -113,40 +253,47 @@ func normalizeDOI(doi string) string {
 	return doi
 }
 
-func processData(client *Client, entries []*bibtex.BibEntry) chan string {
-	numWorkers := min(runtime.NumCPU()-1, 8)
+func processBibEntries(config *Config, entries []*bibtex.BibEntry) chan EntryResult {
+	numWorkers := min(config.nWorker, runtime.NumCPU())
 	numJobs := len(entries)
 
-	jobCh := make(chan string, numJobs)
-	resCh := make(chan string, numJobs)
+	jobCh := make(chan job, numJobs)
+	resCh := make(chan EntryResult, numJobs)
 
-	// Start up worker goroutines
 	var wg sync.WaitGroup
 	for range numWorkers {
 		wg.Go(func() {
-			worker(client, jobCh, resCh)
+			worker(config, jobCh, resCh)
 		})
 	}
-	// defer closing result channel
 	go func() {
 		wg.Wait()
 		close(resCh)
 	}()
 
-	// send jobs to the workers
 	for _, entry := range entries {
-		processEntry(jobCh, entry)
+		processEntry(jobCh, resCh, entry)
 	}
 	close(jobCh)
 	return resCh
 }
 
-func processEntry(jobCh chan<- string, entry *bibtex.BibEntry) {
+func processEntry(jobCh chan<- job, resCh chan<- EntryResult, entry *bibtex.BibEntry) {
 	doiField, found := entry.Fields["doi"]
 	if !found {
-		fmt.Println("[WARN] no doi found:", entry.CiteName)
+		resCh <- EntryResult{
+			CiteName: entry.CiteName,
+			Issue:    &Issue{Kind: IssueNoDOI},
+		}
 		return
 	}
 	doi := normalizeDOI(doiField.String())
-	jobCh <- doi
+	if doi == "" {
+		resCh <- EntryResult{
+			CiteName: entry.CiteName,
+			Issue:    &Issue{Kind: IssueInvalidDOI, Message: "empty after normalization"},
+		}
+		return
+	}
+	jobCh <- job{citeName: entry.CiteName, doi: doi}
 }
