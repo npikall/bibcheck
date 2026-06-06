@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/nickng/bibtex"
 )
 
 type IssueKind int
