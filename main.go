@@ -149,11 +149,16 @@ func processBibFile(file string, config *Config) error {
 		return err
 	}
 
+	spinner := &Spinner{}
+	spinner.Start(len(bib.Entries))
+
 	reporter := &Reporter{verbose: config.verbose}
 	resCh := processBibEntries(config, bib.Entries)
 	for res := range resCh {
+		spinner.Increment()
 		reporter.Collect(res)
 	}
+	spinner.Stop()
 	reporter.Print()
 	return nil
 }
