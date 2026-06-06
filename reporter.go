@@ -1,6 +1,25 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"charm.land/lipgloss/v2"
+)
+
+var (
+	warnStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("192")).Bold(true)
+	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("204")).Bold(true)
+	citeStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true)
+)
+
+func severityStyle(sev string) string {
+	switch sev {
+	case "WARN":
+		return warnStyle.Render(fmt.Sprintf("%-4s", sev))
+	default:
+		return errorStyle.Render(fmt.Sprintf("%-4s", sev))
+	}
+}
 
 type Reporter struct {
 	results []EntryResult
@@ -15,12 +34,13 @@ func (r *Reporter) Print() {
 	for _, res := range r.results {
 		if len(res.Issues) == 0 {
 			if r.verbose {
-				fmt.Printf("[ OK ] %s (%s)\n", res.CiteName, res.DOI)
+				fmt.Printf("[ OK ] %s (%s)\n", citeStyle.Render(res.CiteName), res.DOI)
 			}
 			continue
 		}
+		cite := citeStyle.Render(res.CiteName)
 		for _, issue := range res.Issues {
-			sev := issue.Kind.severity()
+			sev := severityStyle(issue.Kind.severity())
 			var ref string
 			switch issue.Kind {
 			case IssueURLDead, IssueURLError:
@@ -31,13 +51,13 @@ func (r *Reporter) Print() {
 				ref = res.DOI
 			}
 			if ref != "" && issue.Message != "" {
-				fmt.Printf("[%-4s] %s (%s): %s: %s\n", sev, res.CiteName, ref, issue.Kind, issue.Message)
+				fmt.Printf("[%s] %s (%s): %s: %s\n", sev, cite, ref, issue.Kind, issue.Message)
 			} else if ref != "" {
-				fmt.Printf("[%-4s] %s (%s): %s\n", sev, res.CiteName, ref, issue.Kind)
+				fmt.Printf("[%s] %s (%s): %s\n", sev, cite, ref, issue.Kind)
 			} else if issue.Message != "" {
-				fmt.Printf("[%-4s] %s: %s: %s\n", sev, res.CiteName, issue.Kind, issue.Message)
+				fmt.Printf("[%s] %s: %s: %s\n", sev, cite, issue.Kind, issue.Message)
 			} else {
-				fmt.Printf("[%-4s] %s: %s\n", sev, res.CiteName, issue.Kind)
+				fmt.Printf("[%s] %s: %s\n", sev, cite, issue.Kind)
 			}
 		}
 	}
@@ -60,6 +80,9 @@ func (r *Reporter) printSummary() {
 		}
 	}
 	ok := total - withIssues
-	fmt.Printf("\nChecked %d entries: %d OK, %d warning(s), %d error(s)\n",
-		total, ok, warns, errs)
+	fmt.Printf("\nChecked %d entries: %d OK, %s, %s\n",
+		total, ok,
+		warnStyle.Render(fmt.Sprintf("%d warning(s)", warns)),
+		errorStyle.Render(fmt.Sprintf("%d error(s)", errs)),
+	)
 }
