@@ -19,6 +19,7 @@ const (
 	IssueNetworkError
 	IssueURLDead
 	IssueURLError
+	IssueURLForbidden
 )
 
 var IssueName = map[IssueKind]string{
@@ -28,6 +29,7 @@ var IssueName = map[IssueKind]string{
 	IssueNetworkError: "network error",
 	IssueURLDead:      "URL dead",
 	IssueURLError:     "URL server error",
+	IssueURLForbidden: "URL unverifiable (bot-protected)",
 }
 
 func (k IssueKind) String() string {
@@ -45,7 +47,7 @@ const (
 
 func (k IssueKind) severity() string {
 	switch k { //nolint:  exhaustive
-	case IssueNoDOI, IssueURLError:
+	case IssueNoDOI, IssueURLError, IssueURLForbidden:
 		return LevelWarn
 	default:
 		return LevelError
@@ -96,7 +98,7 @@ func processJob(config *Config, j job) EntryResult {
 		issues = append(issues, checkDOIWithRetry(config, j.doi)...)
 	}
 
-	if j.url != "" {
+	if j.url != "" && config.checkURLs {
 		issues = append(issues, checkURLWithRetry(config, j.url)...)
 	}
 
@@ -159,6 +161,8 @@ func checkURLWithRetry(c *Config, rawURL string) []Issue {
 	switch {
 	case res.statusCode >= http.StatusOK && res.statusCode < http.StatusMultipleChoices:
 		return nil
+	case res.statusCode == http.StatusForbidden:
+		return []Issue{{Kind: IssueURLForbidden, Message: "HTTP 403"}}
 	case res.statusCode >= http.StatusBadRequest && res.statusCode < http.StatusInternalServerError:
 		return []Issue{{Kind: IssueURLDead, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
 	case res.statusCode >= http.StatusInternalServerError:

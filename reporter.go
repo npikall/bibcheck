@@ -68,7 +68,7 @@ func (r *Reporter) printIssue(cite string, res EntryResult, issue Issue) {
 
 func issueRef(res EntryResult, issue Issue) string {
 	switch issue.Kind { //nolint:exhaustive
-	case IssueURLDead, IssueURLError:
+	case IssueURLDead, IssueURLError, IssueURLForbidden:
 		return res.URL
 	case IssueNoDOI, IssueInvalidDOI:
 		return ""
