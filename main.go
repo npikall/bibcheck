@@ -61,7 +61,7 @@ func main() {
 func processFile(file string, parser Parser, config *Config) error {
 	jobs, err := parser.Parse(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse %s: %w", file, err)
 	}
 
 	spinner := &Spinner{}

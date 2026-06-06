@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -129,7 +130,7 @@ func checkDOIWithRetry(config *Config, doi string) []Issue {
 
 func checkDOI(c *Config, doi string) httpResult {
 	url := "https://api.crossref.org/works/" + doi
-	req, err := http.NewRequest(http.MethodHead, url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodHead, url, nil)
 	if err != nil {
 		return httpResult{err: fmt.Errorf("build request: %w", err)}
 	}
@@ -140,8 +141,11 @@ func checkDOI(c *Config, doi string) httpResult {
 	if err != nil {
 		return httpResult{err: fmt.Errorf("http: %w", err)}
 	}
-	defer resp.Body.Close()
-	return httpResult{statusCode: resp.StatusCode}
+	statusCode := resp.StatusCode
+	if err := resp.Body.Close(); err != nil {
+		return httpResult{err: fmt.Errorf("close response body: %w", err)}
+	}
+	return httpResult{statusCode: statusCode}
 }
 
 func checkURLWithRetry(c *Config, rawURL string) []Issue {
@@ -173,7 +177,7 @@ func checkURL(c *Config, rawURL string) httpResult {
 }
 
 func makeRequest(c *Config, method string, url string) httpResult {
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), method, url, nil)
 	if err != nil {
 		return httpResult{err: fmt.Errorf("build request: %w", err)}
 	}
@@ -182,9 +186,11 @@ func makeRequest(c *Config, method string, url string) httpResult {
 	if err != nil {
 		return httpResult{err: fmt.Errorf("http: %w", err)}
 	}
-	defer resp.Body.Close()
-
-	return httpResult{statusCode: resp.StatusCode}
+	statusCode := resp.StatusCode
+	if err := resp.Body.Close(); err != nil {
+		return httpResult{err: fmt.Errorf("close response body: %w", err)}
+	}
+	return httpResult{statusCode: statusCode}
 }
 
 // Parser converts a bibliography file into jobs for the processing pipeline.

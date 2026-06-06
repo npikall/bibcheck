@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const spinnerInterval = 100 * time.Millisecond
+
 var brailleFrames = []rune{'⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'}
 
 type Spinner struct {
@@ -22,7 +24,7 @@ func (s *Spinner) Start(total int) {
 	s.doneCh = make(chan struct{})
 	go func() {
 		defer close(s.doneCh)
-		ticker := time.NewTicker(100 * time.Millisecond)
+		ticker := time.NewTicker(spinnerInterval)
 		defer ticker.Stop()
 		frame := 0
 		for {

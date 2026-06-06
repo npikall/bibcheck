@@ -10,12 +10,16 @@ import (
 
 type BibParser struct{}
 
-func (p *BibParser) Parse(file string) ([]job, error) {
-	f, err := os.Open(file)
+func (p *BibParser) Parse(file string) (_ []job, err error) {
+	f, err := os.Open(file) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", file, err)
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	bib, err := bibtex.Parse(f)
 	if err != nil {

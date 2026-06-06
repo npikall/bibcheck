@@ -22,7 +22,7 @@ func (u *hayagrivaURL) UnmarshalYAML(value *yaml.Node) error {
 		Value string `yaml:"value"`
 	}
 	if err := value.Decode(&obj); err != nil {
-		return err
+		return fmt.Errorf("decode yaml value: %w", err)
 	}
 	u.Value = obj.Value
 	return nil
@@ -37,12 +37,16 @@ type hayagrivaEntry struct {
 
 type YAMLParser struct{}
 
-func (p *YAMLParser) Parse(file string) ([]job, error) {
-	f, err := os.Open(file)
+func (p *YAMLParser) Parse(file string) (_ []job, err error) {
+	f, err := os.Open(file) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", file, err)
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	var entries map[string]hayagrivaEntry
 	if err := yaml.NewDecoder(f).Decode(&entries); err != nil {

@@ -39,30 +39,42 @@ func (r *Reporter) Print() {
 			}
 			continue
 		}
-		cite := citeStyle.Render(res.CiteName)
-		for _, issue := range res.Issues {
-			sev := severityStyle(issue.Kind.severity())
-			var ref string
-			switch issue.Kind {
-			case IssueURLDead, IssueURLError:
-				ref = res.URL
-			case IssueNoDOI, IssueInvalidDOI:
-				ref = ""
-			default:
-				ref = res.DOI
-			}
-			if ref != "" && issue.Message != "" {
-				fmt.Printf("[%s] %s (%s): %s: %s\n", sev, cite, ref, issue.Kind, issue.Message)
-			} else if ref != "" {
-				fmt.Printf("[%s] %s (%s): %s\n", sev, cite, ref, issue.Kind)
-			} else if issue.Message != "" {
-				fmt.Printf("[%s] %s: %s: %s\n", sev, cite, issue.Kind, issue.Message)
-			} else {
-				fmt.Printf("[%s] %s: %s\n", sev, cite, issue.Kind)
-			}
-		}
+		r.printEntry(res)
 	}
 	r.printSummary()
+}
+
+func (r *Reporter) printEntry(res EntryResult) {
+	cite := citeStyle.Render(res.CiteName)
+	for _, issue := range res.Issues {
+		r.printIssue(cite, res, issue)
+	}
+}
+
+func (r *Reporter) printIssue(cite string, res EntryResult, issue Issue) {
+	sev := severityStyle(issue.Kind.severity())
+	ref := issueRef(res, issue)
+	switch {
+	case ref != "" && issue.Message != "":
+		fmt.Printf("[%s] %s %s (%s): %s\n", sev, cite, issue.Kind, ref, issue.Message)
+	case ref != "":
+		fmt.Printf("[%s] %s %s (%s)\n", sev, cite, issue.Kind, ref)
+	case issue.Message != "":
+		fmt.Printf("[%s] %s %s: %s\n", sev, cite, issue.Kind, issue.Message)
+	default:
+		fmt.Printf("[%s] %s %s\n", sev, cite, issue.Kind)
+	}
+}
+
+func issueRef(res EntryResult, issue Issue) string {
+	switch issue.Kind { //nolint:exhaustive
+	case IssueURLDead, IssueURLError:
+		return res.URL
+	case IssueNoDOI, IssueInvalidDOI:
+		return ""
+	default:
+		return res.DOI
+	}
 }
 
 func (r *Reporter) printSummary() {
