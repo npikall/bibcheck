@@ -38,7 +38,7 @@ func main() {
 	email := flag.String("email", "", "An email to get better rate limits from Crossref API")
 	nWorker := flag.Int("n", 1, "Number of workers for concurrent processing")
 	verbose := flag.Bool("v", false, "Produce verbose output")
-	checkURLs := flag.Bool("urls", true, "Check URLs in bibliography entries")
+	checkURLs := flag.Bool("urls", false, "Check URLs in bibliography entries")
 	verify := flag.Bool("verify", false, "Verify title, author, and year against Crossref metadata")
 	maxRetries := flag.Int("retry", 3, "Max retries when fetching DOI data on rate limit (429)") //nolint: mnd
 	flag.Parse()
@@ -91,7 +91,7 @@ func processFile(file string, parser Parser, config *Config) error {
 
 func resolveArgs() string {
 	if flag.Arg(0) == "help" || flag.NArg() == 0 {
-		fmt.Fprintln(os.Stderr, "bibcheck [-email string][-n int] <file>")
+		fmt.Fprintln(os.Stderr, "bibcheck [-email string] [-n int] [-v] [-urls] [-verify] [-retry int] <file.bib|file.yaml>")
 		fmt.Fprintln(os.Stderr, "")
 		flag.Usage()
 		os.Exit(1)

@@ -63,6 +63,15 @@ func (r *Reporter) printIssue(cite string, res EntryResult, issue Issue) {
 		return
 	}
 
+	if isURLIssue(issue.Kind) {
+		if issue.Message != "" {
+			fmt.Printf("[%s] %s %s: %s\n         url: %s\n", sev, cite, issue.Kind, issue.Message, ref)
+		} else {
+			fmt.Printf("[%s] %s %s\n         url: %s\n", sev, cite, issue.Kind, ref)
+		}
+		return
+	}
+
 	switch {
 	case ref != "" && issue.Message != "":
 		fmt.Printf("[%s] %s %s (%s): %s\n", sev, cite, issue.Kind, ref, issue.Message)
@@ -73,6 +82,14 @@ func (r *Reporter) printIssue(cite string, res EntryResult, issue Issue) {
 	default:
 		fmt.Printf("[%s] %s %s\n", sev, cite, issue.Kind)
 	}
+}
+
+func isURLIssue(kind IssueKind) bool {
+	switch kind {
+	case IssueURLDead, IssueURLError, IssueURLForbidden:
+		return true
+	}
+	return false
 }
 
 func issueRef(res EntryResult, issue Issue) string {
