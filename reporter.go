@@ -14,7 +14,7 @@ var (
 
 func severityStyle(sev string) string {
 	switch sev {
-	case "WARN":
+	case LevelWarn:
 		return warnStyle.Render(fmt.Sprintf("%-4s", sev))
 	default:
 		return errorStyle.Render(fmt.Sprintf("%-4s", sev))
@@ -72,7 +72,7 @@ func (r *Reporter) printSummary() {
 			withIssues++
 		}
 		for _, issue := range res.Issues {
-			if issue.Kind.severity() == "WARN" {
+			if issue.Kind.severity() == LevelWarn {
 				warns++
 			} else {
 				errs++

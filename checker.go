@@ -39,12 +39,17 @@ func (k IssueKind) String() string {
 	return msg
 }
 
+const (
+	LevelWarn  = "WARN"
+	LevelError = "ERRO"
+)
+
 func (k IssueKind) severity() string {
-	switch k {
+	switch k { //nolint:  exhaustive
 	case IssueNoDOI, IssueURLError:
-		return "WARN"
+		return LevelWarn
 	default:
-		return "ERRO"
+		return LevelError
 	}
 }
 
