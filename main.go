@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -28,6 +30,7 @@ func NewConfig(email string, verbose bool, n int) *Config {
 }
 
 func main() {
+	log.SetOutput(io.Discard)
 	email := flag.String("email", "", "An email to get better rate limits from Crossref API")
 	nWorker := flag.Int("n", 1, "Number of workers for concurrent processing")
 	verbose := flag.Bool("v", false, "Produce verbose output")
