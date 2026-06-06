@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/nickng/bibtex"
 )
 
 type Config struct {
@@ -39,32 +37,35 @@ func main() {
 
 	file := resolveArgs()
 	ext := filepath.Ext(file)
+
+	var parser Parser
 	switch ext {
 	case ".yml", ".yaml":
-		fmt.Fprintln(os.Stderr, "yaml not yet supported")
-		os.Exit(1)
+		parser = &YAMLParser{}
 	case ".bib":
-		if err := processBibFile(file, config); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
+		parser = &BibParser{}
 	default:
 		fmt.Fprintln(os.Stderr, "unknown file extension:", ext)
 		os.Exit(1)
 	}
+
+	if err := processFile(file, parser, config); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
 
-func processBibFile(file string, config *Config) error {
-	bib, err := parseBibFile(file)
+func processFile(file string, parser Parser, config *Config) error {
+	jobs, err := parser.Parse(file)
 	if err != nil {
 		return err
 	}
 
 	spinner := &Spinner{}
-	spinner.Start(len(bib.Entries))
+	spinner.Start(len(jobs))
 
 	reporter := &Reporter{verbose: config.verbose}
-	resCh := processBibEntries(config, bib.Entries)
+	resCh := processJobs(config, jobs)
 	for res := range resCh {
 		spinner.Increment()
 		reporter.Collect(res)
@@ -82,17 +83,4 @@ func resolveArgs() string {
 		os.Exit(1)
 	}
 	return flag.Arg(0)
-}
-
-func parseBibFile(file string) (*bibtex.BibTex, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", file, err)
-	}
-	defer f.Close()
-	bib, err := bibtex.Parse(f)
-	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", file, err)
-	}
-	return bib, nil
 }
