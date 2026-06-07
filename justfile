@@ -10,16 +10,20 @@ BIN_NAME := "bibcheck"
 LDFLAGS := "-s -w"
 
 # build the binary
-build:
-    go build -ldflags="{{ LDFLAGS }}" -o {{ BIN_NAME }}
+build *args:
+    go build -ldflags="{{ LDFLAGS }}" -o {{ BIN_NAME }} {{ args }}
 
 # install the binary locally
-install:
-    go install -ldflags="{{ LDFLAGS }}"
+install *args:
+    go install -ldflags="{{ LDFLAGS }}" {{ args }}
 
 # run the test suite
-test:
-    go test ./...
+test *args:
+    go test ./... {{ args }}
+
+# run benchmarks
+bench filter=".":
+    go test -bench={{ filter }} -benchtime=3x -timeout=600s
 
 # run the go formatter
 format:

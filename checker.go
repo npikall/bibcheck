@@ -149,7 +149,7 @@ func checkDOIWithRetry(config *Config, doi string) []Issue {
 }
 
 func checkDOI(c *Config, doi string) httpResult {
-	url := "https://api.crossref.org/works/" + doi
+	url := c.crossrefBaseURL + doi
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodHead, url, nil)
 	if err != nil {
 		return httpResult{err: fmt.Errorf("build request: %w", err)}
@@ -382,7 +382,7 @@ func formatCrossRefAuthors(authors []crossrefAuthor) string {
 }
 
 func fetchCrossRefMessage(config *Config, doi string) (crossrefMessage, bool) {
-	url := "https://api.crossref.org/works/" + doi
+	url := config.crossrefBaseURL + doi
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
 		return crossrefMessage{}, false

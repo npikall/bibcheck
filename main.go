@@ -12,24 +12,26 @@ import (
 )
 
 type Config struct {
-	client     *http.Client
-	email      string
-	verbose    bool
-	checkURLs  bool
-	verify     bool
-	nWorker    int
-	maxRetries int
+	client          *http.Client
+	email           string
+	verbose         bool
+	checkURLs       bool
+	verify          bool
+	nWorker         int
+	maxRetries      int
+	crossrefBaseURL string
 }
 
 func NewConfig(email string, verbose bool, checkURLs bool, verify bool, n int, maxRetries int) *Config {
 	return &Config{
-		client:     &http.Client{Timeout: 5 * time.Second}, //nolint: mnd
-		email:      email,
-		verbose:    verbose,
-		checkURLs:  checkURLs,
-		verify:     verify,
-		nWorker:    n,
-		maxRetries: maxRetries,
+		client:          &http.Client{Timeout: 5 * time.Second}, //nolint: mnd
+		email:           email,
+		verbose:         verbose,
+		checkURLs:       checkURLs,
+		verify:          verify,
+		nWorker:         n,
+		maxRetries:      maxRetries,
+		crossrefBaseURL: "https://api.crossref.org/works/",
 	}
 }
 
