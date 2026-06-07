@@ -102,6 +102,7 @@ prefix2023:
 `
 
 func TestYAMLParser_WithDOI(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlWithDOI))
 	require.NoError(t, err)
@@ -117,6 +118,7 @@ func TestYAMLParser_WithDOI(t *testing.T) {
 }
 
 func TestYAMLParser_NoDOI(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlNoDOI))
 	require.NoError(t, err)
@@ -129,6 +131,7 @@ func TestYAMLParser_NoDOI(t *testing.T) {
 }
 
 func TestYAMLParser_ObjectTitle(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlObjectTitle))
 	require.NoError(t, err)
@@ -137,6 +140,7 @@ func TestYAMLParser_ObjectTitle(t *testing.T) {
 }
 
 func TestYAMLParser_ObjectURL(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlObjectURL))
 	require.NoError(t, err)
@@ -145,6 +149,7 @@ func TestYAMLParser_ObjectURL(t *testing.T) {
 }
 
 func TestYAMLParser_ScalarURL(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlScalarURL))
 	require.NoError(t, err)
@@ -153,6 +158,7 @@ func TestYAMLParser_ScalarURL(t *testing.T) {
 }
 
 func TestYAMLParser_FullDateExtractsYear(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlFullDate))
 	require.NoError(t, err)
@@ -161,6 +167,7 @@ func TestYAMLParser_FullDateExtractsYear(t *testing.T) {
 }
 
 func TestYAMLParser_MultipleAuthors(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlMultipleAuthors))
 	require.NoError(t, err)
@@ -169,6 +176,7 @@ func TestYAMLParser_MultipleAuthors(t *testing.T) {
 }
 
 func TestYAMLParser_ScalarAuthor(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlScalarAuthor))
 	require.NoError(t, err)
@@ -177,6 +185,7 @@ func TestYAMLParser_ScalarAuthor(t *testing.T) {
 }
 
 func TestYAMLParser_DOINormalization(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	jobs, err := p.Parse(strings.NewReader(yamlDOIWithPrefix))
 	require.NoError(t, err)
@@ -185,6 +194,7 @@ func TestYAMLParser_DOINormalization(t *testing.T) {
 }
 
 func TestYAMLParser_InvalidInput(t *testing.T) {
+	t.Parallel()
 	p := &YAMLParser{}
 	_, err := p.Parse(strings.NewReader(":\t\tinvalid: yaml: {{"))
 	assert.Error(t, err)
@@ -193,6 +203,7 @@ func TestYAMLParser_InvalidInput(t *testing.T) {
 // --- Custom unmarshalers ---
 
 func TestHayagrivaURLScalar(t *testing.T) {
+	t.Parallel()
 	var u hayagrivaURL
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "https://example.com"}
 	require.NoError(t, u.UnmarshalYAML(node))
@@ -200,6 +211,7 @@ func TestHayagrivaURLScalar(t *testing.T) {
 }
 
 func TestHayagrivaURLObject(t *testing.T) {
+	t.Parallel()
 	var u hayagrivaURL
 	node := &yaml.Node{}
 	require.NoError(t, yaml.Unmarshal([]byte("value: https://example.com"), node))
@@ -208,6 +220,7 @@ func TestHayagrivaURLObject(t *testing.T) {
 }
 
 func TestHayagrivaTitleScalar(t *testing.T) {
+	t.Parallel()
 	var ti hayagrivaTitle
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "My Title"}
 	require.NoError(t, ti.UnmarshalYAML(node))
@@ -215,6 +228,7 @@ func TestHayagrivaTitleScalar(t *testing.T) {
 }
 
 func TestHayagrivaTitleObject(t *testing.T) {
+	t.Parallel()
 	var ti hayagrivaTitle
 	node := &yaml.Node{}
 	require.NoError(t, yaml.Unmarshal([]byte("value: My Title"), node))
@@ -223,6 +237,7 @@ func TestHayagrivaTitleObject(t *testing.T) {
 }
 
 func TestHayagrivaAuthorScalar(t *testing.T) {
+	t.Parallel()
 	var a hayagrivaAuthor
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "Smith, John"}
 	require.NoError(t, a.UnmarshalYAML(node))
@@ -230,6 +245,7 @@ func TestHayagrivaAuthorScalar(t *testing.T) {
 }
 
 func TestHayagrivaAuthorSequence(t *testing.T) {
+	t.Parallel()
 	var a hayagrivaAuthor
 	node := &yaml.Node{}
 	require.NoError(t, yaml.Unmarshal([]byte("- Smith, John\n- Doe, Jane"), node))
@@ -238,6 +254,7 @@ func TestHayagrivaAuthorSequence(t *testing.T) {
 }
 
 func TestHayagrivaDateScalar(t *testing.T) {
+	t.Parallel()
 	var d hayagrivaDate
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "2023"}
 	require.NoError(t, d.UnmarshalYAML(node))
@@ -245,6 +262,7 @@ func TestHayagrivaDateScalar(t *testing.T) {
 }
 
 func TestHayagrivaDateFullString(t *testing.T) {
+	t.Parallel()
 	var d hayagrivaDate
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "2023-06-15"}
 	require.NoError(t, d.UnmarshalYAML(node))
@@ -252,6 +270,7 @@ func TestHayagrivaDateFullString(t *testing.T) {
 }
 
 func TestHayagrivaDateNonScalarError(t *testing.T) {
+	t.Parallel()
 	var d hayagrivaDate
 	node := &yaml.Node{Kind: yaml.MappingNode}
 	err := d.UnmarshalYAML(node)

@@ -140,7 +140,7 @@ func checkDOIWithRetry(config *Config, doi string) []Issue {
 			time.Sleep(backoff)
 			backoff *= 2
 		case http.StatusNotFound:
-			return []Issue{{Kind: IssueDOINotFound, Message: "HTTP 404"}}
+			return []Issue{{Kind: IssueDOINotFound, Message: msgHTTP404}}
 		default:
 			return []Issue{{Kind: IssueDOINotFound, Message: fmt.Sprintf("HTTP %d", res.statusCode)}}
 		}
@@ -245,12 +245,20 @@ func (d crossrefDate) year() string {
 const (
 	entryArticle       = "article"
 	entryBook          = "book"
+	entryConference    = "conference"
+	entryInbook        = "inbook"
+	entryIncollection  = "incollection"
 	entryInproceedings = "inproceedings"
 	entryMisc          = "misc"
+	entryPhdthesis     = "phdthesis"
+	entryProceedings   = "proceedings"
 
 	fieldAuthor = "author"
 	fieldTitle  = "title"
 	fieldYear   = "year"
+
+	msgHTTP404       = "HTTP 404"
+	msgTitleMismatch = "title mismatch"
 )
 
 var (
@@ -264,37 +272,37 @@ var bibRequiredFields = map[string][]string{
 	entryArticle:       allFields,
 	entryBook:          allFields,
 	"booklet":          titleOnly,
-	"conference":       allFields,
-	"inbook":           allFields,
-	"incollection":     allFields,
+	entryConference:    allFields,
+	entryInbook:        allFields,
+	entryIncollection:  allFields,
 	entryInproceedings: allFields,
 	"manual":           titleOnly,
 	"mastersthesis":    allFields,
 	entryMisc:          {},
 	"online":           allFields,
-	"phdthesis":        allFields,
-	"proceedings":      {fieldTitle, fieldYear},
+	entryPhdthesis:     allFields,
+	entryProceedings:   {fieldTitle, fieldYear},
 	"techreport":       allFields,
 	"unpublished":      withoutYear,
 }
 
 // hayagrivaTypeToBib maps Hayagriva entry types to BibTeX equivalents.
 var hayagrivaTypeToBib = map[string]string{
-	entryArticle:  entryArticle,
-	entryBook:     entryBook,
-	"chapter":     "inbook",
-	"proceedings": entryInproceedings,
-	"thesis":      "phdthesis",
-	"web":         entryMisc,
-	"newspaper":   entryArticle,
-	"magazine":    entryArticle,
-	"report":      "techreport",
-	"blog":        entryMisc,
-	"video":       entryMisc,
-	"audio":       entryMisc,
-	"patent":      entryMisc,
-	"conference":  entryInproceedings,
-	"anthology":   "incollection",
+	entryArticle:     entryArticle,
+	entryBook:        entryBook,
+	"chapter":        entryInbook,
+	entryProceedings: entryInproceedings,
+	"thesis":         entryPhdthesis,
+	"web":            entryMisc,
+	"newspaper":      entryArticle,
+	"magazine":       entryArticle,
+	"report":         "techreport",
+	"blog":           entryMisc,
+	"video":          entryMisc,
+	"audio":          entryMisc,
+	"patent":         entryMisc,
+	entryConference:  entryInproceedings,
+	"anthology":      entryIncollection,
 }
 
 func resolveEntryType(t string) string {
@@ -417,7 +425,7 @@ func (j job) diffTitle(entryType string, msg crossrefMessage) *Issue {
 	}
 	return &Issue{
 		Kind:    IssueDiff,
-		Message: "title mismatch",
+		Message: msgTitleMismatch,
 		Detail:  fmt.Sprintf("         local:    %q\n         crossref: %q", j.title, msg.Title[0]),
 	}
 }

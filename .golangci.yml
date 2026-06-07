@@ -78,6 +78,9 @@ linters:
           - gocyclo
           - errcheck
           - gosec
+      - path: 'parser_bib_test\.go'
+        linters:
+          - paralleltest
 formatters:
   enable:
     - goimports

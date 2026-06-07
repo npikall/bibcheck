@@ -40,7 +40,7 @@ func (r *Reporter) Print() {
 	for _, res := range r.results {
 		if len(res.Issues) == 0 {
 			if r.verbose {
-				fmt.Fprintf(r.w, "[%s] %s (%s)\n", okStyle.Render(" OK "), citeStyle.Render(res.CiteName), res.DOI)
+				_, _ = fmt.Fprintf(r.w, "[%s] %s (%s)\n", okStyle.Render(" OK "), citeStyle.Render(res.CiteName), res.DOI)
 			}
 			continue
 		}
@@ -61,37 +61,38 @@ func (r *Reporter) printIssue(cite string, res EntryResult, issue Issue) {
 	ref := issueRef(res, issue)
 
 	if issue.Kind == IssueDiff {
-		fmt.Fprintf(r.w, "[%s] %s %s (%s):\n%s\n", sev, cite, issue.Message, ref, issue.Detail)
+		_, _ = fmt.Fprintf(r.w, "[%s] %s %s (%s):\n%s\n", sev, cite, issue.Message, ref, issue.Detail)
 		return
 	}
 
 	if isURLIssue(issue.Kind) {
 		if issue.Message != "" {
-			fmt.Fprintf(r.w, "[%s] %s %s: %s\n         url: %s\n", sev, cite, issue.Kind, issue.Message, ref)
+			_, _ = fmt.Fprintf(r.w, "[%s] %s %s: %s\n         url: %s\n", sev, cite, issue.Kind, issue.Message, ref)
 		} else {
-			fmt.Fprintf(r.w, "[%s] %s %s\n         url: %s\n", sev, cite, issue.Kind, ref)
+			_, _ = fmt.Fprintf(r.w, "[%s] %s %s\n         url: %s\n", sev, cite, issue.Kind, ref)
 		}
 		return
 	}
 
 	switch {
 	case ref != "" && issue.Message != "":
-		fmt.Fprintf(r.w, "[%s] %s %s (%s): %s\n", sev, cite, issue.Kind, ref, issue.Message)
+		_, _ = fmt.Fprintf(r.w, "[%s] %s %s (%s): %s\n", sev, cite, issue.Kind, ref, issue.Message)
 	case ref != "":
-		fmt.Fprintf(r.w, "[%s] %s %s (%s)\n", sev, cite, issue.Kind, ref)
+		_, _ = fmt.Fprintf(r.w, "[%s] %s %s (%s)\n", sev, cite, issue.Kind, ref)
 	case issue.Message != "":
-		fmt.Fprintf(r.w, "[%s] %s %s: %s\n", sev, cite, issue.Kind, issue.Message)
+		_, _ = fmt.Fprintf(r.w, "[%s] %s %s: %s\n", sev, cite, issue.Kind, issue.Message)
 	default:
-		fmt.Fprintf(r.w, "[%s] %s %s\n", sev, cite, issue.Kind)
+		_, _ = fmt.Fprintf(r.w, "[%s] %s %s\n", sev, cite, issue.Kind)
 	}
 }
 
 func isURLIssue(kind IssueKind) bool {
-	switch kind {
+	switch kind { //nolint:exhaustive
 	case IssueURLDead, IssueURLError, IssueURLForbidden:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func issueRef(res EntryResult, issue Issue) string {
@@ -132,5 +133,5 @@ func (r *Reporter) printSummary() {
 	if diffs > 0 {
 		line += ", " + diffStyle.Render(fmt.Sprintf("%d diff(s)", diffs))
 	}
-	fmt.Fprintln(r.w, line)
+	_, _ = fmt.Fprintln(r.w, line)
 }

@@ -102,7 +102,7 @@ type hayagrivaEntry struct {
 
 type YAMLParser struct{}
 
-func (p *YAMLParser) Parse(r io.Reader) (_ []job, err error) {
+func (p *YAMLParser) Parse(r io.Reader) ([]job, error) {
 	var entries map[string]hayagrivaEntry
 	if err := yaml.NewDecoder(r).Decode(&entries); err != nil {
 		return nil, fmt.Errorf("parse yaml: %w", err)

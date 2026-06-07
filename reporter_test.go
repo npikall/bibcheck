@@ -2,15 +2,20 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMain(m *testing.M) {
+	os.Setenv("NO_COLOR", "1")
+	os.Exit(m.Run())
+}
+
 func newReporter(t *testing.T, verbose bool) (*Reporter, *bytes.Buffer) {
 	t.Helper()
-	t.Setenv("NO_COLOR", "1")
 	buf := &bytes.Buffer{}
 	return &Reporter{w: buf, verbose: verbose}, buf
 }
@@ -18,6 +23,7 @@ func newReporter(t *testing.T, verbose bool) (*Reporter, *bytes.Buffer) {
 // --- Collect ---
 
 func TestReporterCollect(t *testing.T) {
+	t.Parallel()
 	r, _ := newReporter(t, false)
 	r.Collect(EntryResult{CiteName: "key1", DOI: "10.1/a"})
 	r.Collect(EntryResult{CiteName: "key2", DOI: "10.1/b"})
@@ -27,6 +33,7 @@ func TestReporterCollect(t *testing.T) {
 // --- Print: verbose OK entry ---
 
 func TestReporterPrint_VerboseOK(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, true)
 	r.Collect(EntryResult{CiteName: "key1", DOI: "10.1/a", Issues: nil})
 	r.Print()
@@ -37,6 +44,7 @@ func TestReporterPrint_VerboseOK(t *testing.T) {
 }
 
 func TestReporterPrint_NonVerboseOKSilent(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{CiteName: "key1", DOI: "10.1/a", Issues: nil})
 	r.Print()
@@ -47,6 +55,7 @@ func TestReporterPrint_NonVerboseOKSilent(t *testing.T) {
 // --- printIssue: DOI issues ---
 
 func TestReporterPrint_NoDOI(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "key1",
@@ -60,6 +69,7 @@ func TestReporterPrint_NoDOI(t *testing.T) {
 }
 
 func TestReporterPrint_InvalidDOI(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "key1",
@@ -73,6 +83,7 @@ func TestReporterPrint_InvalidDOI(t *testing.T) {
 }
 
 func TestReporterPrint_DOINotFound(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "key1",
@@ -89,6 +100,7 @@ func TestReporterPrint_DOINotFound(t *testing.T) {
 // --- printIssue: URL issues ---
 
 func TestReporterPrint_URLDead(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "key1",
@@ -103,6 +115,7 @@ func TestReporterPrint_URLDead(t *testing.T) {
 }
 
 func TestReporterPrint_URLForbidden(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "key1",
@@ -117,6 +130,7 @@ func TestReporterPrint_URLForbidden(t *testing.T) {
 }
 
 func TestReporterPrint_URLIssueNoMessage(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "key1",
@@ -131,6 +145,7 @@ func TestReporterPrint_URLIssueNoMessage(t *testing.T) {
 // --- printIssue: Diff ---
 
 func TestReporterPrint_Diff(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "key1",
@@ -151,6 +166,7 @@ func TestReporterPrint_Diff(t *testing.T) {
 // --- printSummary ---
 
 func TestReporterSummary_AllOK(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{CiteName: "a", Issues: nil})
 	r.Collect(EntryResult{CiteName: "b", Issues: nil})
@@ -164,6 +180,7 @@ func TestReporterSummary_AllOK(t *testing.T) {
 }
 
 func TestReporterSummary_MixedIssues(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{CiteName: "a", Issues: []Issue{{Kind: IssueNoDOI}}})
 	r.Collect(EntryResult{CiteName: "b", Issues: []Issue{{Kind: IssueDOINotFound, Message: "HTTP 404"}}})
@@ -177,6 +194,7 @@ func TestReporterSummary_MixedIssues(t *testing.T) {
 }
 
 func TestReporterSummary_WithDiffs(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "a",
@@ -188,6 +206,7 @@ func TestReporterSummary_WithDiffs(t *testing.T) {
 }
 
 func TestReporterSummary_MultipleIssuesSameEntry(t *testing.T) {
+	t.Parallel()
 	r, buf := newReporter(t, false)
 	r.Collect(EntryResult{
 		CiteName: "a",

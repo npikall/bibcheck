@@ -13,6 +13,7 @@ import (
 // --- normalizeDOI ---
 
 func TestNormalizeDOI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   string
 		want string
@@ -32,6 +33,7 @@ func TestNormalizeDOI(t *testing.T) {
 // --- normalizeTitle ---
 
 func TestNormalizeTitle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   string
 		want string
@@ -49,6 +51,7 @@ func TestNormalizeTitle(t *testing.T) {
 // --- resolveEntryType ---
 
 func TestResolveEntryType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   string
 		want string
@@ -73,6 +76,7 @@ func TestResolveEntryType(t *testing.T) {
 // --- isRequired ---
 
 func TestIsRequired(t *testing.T) {
+	t.Parallel()
 	assert.True(t, isRequired("article", "author"))
 	assert.True(t, isRequired("article", "title"))
 	assert.True(t, isRequired("article", "year"))
@@ -88,6 +92,7 @@ func TestIsRequired(t *testing.T) {
 // --- extractBibFamilyNames ---
 
 func TestExtractBibFamilyNames(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in   string
 		want []string
@@ -108,6 +113,7 @@ func TestExtractBibFamilyNames(t *testing.T) {
 // --- extractCrossRefFamilyNames ---
 
 func TestExtractCrossRefFamilyNames(t *testing.T) {
+	t.Parallel()
 	authors := []crossrefAuthor{
 		{Family: "Smith", Given: "John"},
 		{Family: "Doe", Given: "Jane"},
@@ -118,12 +124,14 @@ func TestExtractCrossRefFamilyNames(t *testing.T) {
 }
 
 func TestExtractCrossRefFamilyNamesEmpty(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, []string{}, extractCrossRefFamilyNames([]crossrefAuthor{}))
 }
 
 // --- familyNameSetsEqual ---
 
 func TestFamilyNameSetsEqual(t *testing.T) {
+	t.Parallel()
 	assert.True(t, familyNameSetsEqual([]string{"smith", "doe"}, []string{"doe", "smith"}))
 	assert.True(t, familyNameSetsEqual([]string{}, []string{}))
 	assert.False(t, familyNameSetsEqual([]string{"smith"}, []string{"doe"}))
@@ -134,6 +142,7 @@ func TestFamilyNameSetsEqual(t *testing.T) {
 // --- formatCrossRefAuthors ---
 
 func TestFormatCrossRefAuthors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		authors []crossrefAuthor
 		want    string
@@ -151,6 +160,7 @@ func TestFormatCrossRefAuthors(t *testing.T) {
 // --- crossrefDate.year() ---
 
 func TestCrossrefDateYear(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "2023", crossrefDate{DateParts: [][]int{{2023, 1, 15}}}.year())
 	assert.Equal(t, "2023", crossrefDate{DateParts: [][]int{{2023}}}.year())
 	assert.Empty(t, crossrefDate{DateParts: [][]int{}}.year())
@@ -160,6 +170,7 @@ func TestCrossrefDateYear(t *testing.T) {
 // --- IssueKind.String() ---
 
 func TestIssueKindString(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "no DOI field", IssueNoDOI.String())
 	assert.Equal(t, "invalid DOI", IssueInvalidDOI.String())
 	assert.Equal(t, "DOI not found", IssueDOINotFound.String())
@@ -174,6 +185,7 @@ func TestIssueKindString(t *testing.T) {
 // --- IssueKind.severity() ---
 
 func TestIssueKindSeverity(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, LevelWarn, IssueNoDOI.severity())
 	assert.Equal(t, LevelWarn, IssueURLError.severity())
 	assert.Equal(t, LevelWarn, IssueURLForbidden.severity())
@@ -187,6 +199,7 @@ func TestIssueKindSeverity(t *testing.T) {
 // --- isURLIssue ---
 
 func TestIsURLIssue(t *testing.T) {
+	t.Parallel()
 	assert.True(t, isURLIssue(IssueURLDead))
 	assert.True(t, isURLIssue(IssueURLError))
 	assert.True(t, isURLIssue(IssueURLForbidden))
@@ -198,6 +211,7 @@ func TestIsURLIssue(t *testing.T) {
 // --- issueRef ---
 
 func TestIssueRef(t *testing.T) {
+	t.Parallel()
 	res := EntryResult{DOI: "10.1/x", URL: "https://example.com"}
 	assert.Equal(t, "https://example.com", issueRef(res, Issue{Kind: IssueURLDead}))
 	assert.Equal(t, "https://example.com", issueRef(res, Issue{Kind: IssueURLError}))
@@ -211,6 +225,7 @@ func TestIssueRef(t *testing.T) {
 // --- job.diffTitle ---
 
 func TestJobDiffTitle(t *testing.T) {
+	t.Parallel()
 	j := job{title: "Hello World"}
 	msg := crossrefMessage{Title: []string{"Hello World"}}
 	assert.Nil(t, j.diffTitle("article", msg))
@@ -223,18 +238,21 @@ func TestJobDiffTitle(t *testing.T) {
 }
 
 func TestJobDiffTitleNotRequired(t *testing.T) {
+	t.Parallel()
 	j := job{title: "Something"}
 	msg := crossrefMessage{Title: []string{"Other"}}
 	assert.Nil(t, j.diffTitle("misc", msg))
 }
 
 func TestJobDiffTitleEmptyLocal(t *testing.T) {
+	t.Parallel()
 	j := job{title: ""}
 	msg := crossrefMessage{Title: []string{"Remote Title"}}
 	assert.Nil(t, j.diffTitle("article", msg))
 }
 
 func TestJobDiffTitleBraceNormalization(t *testing.T) {
+	t.Parallel()
 	j := job{title: "{Hello} {World}"}
 	msg := crossrefMessage{Title: []string{"Hello World"}}
 	assert.Nil(t, j.diffTitle("article", msg))
@@ -243,6 +261,7 @@ func TestJobDiffTitleBraceNormalization(t *testing.T) {
 // --- job.diffAuthor ---
 
 func TestJobDiffAuthor(t *testing.T) {
+	t.Parallel()
 	j := job{author: "Smith, John"}
 	msg := crossrefMessage{Author: []crossrefAuthor{{Family: "Smith", Given: "John"}}}
 	assert.Nil(t, j.diffAuthor("article", msg))
@@ -255,6 +274,7 @@ func TestJobDiffAuthor(t *testing.T) {
 }
 
 func TestJobDiffAuthorNotRequired(t *testing.T) {
+	t.Parallel()
 	j := job{author: "Smith, John"}
 	msg := crossrefMessage{Author: []crossrefAuthor{{Family: "Doe"}}}
 	assert.Nil(t, j.diffAuthor("misc", msg))
@@ -263,6 +283,7 @@ func TestJobDiffAuthorNotRequired(t *testing.T) {
 // --- job.diffYear ---
 
 func TestJobDiffYear(t *testing.T) {
+	t.Parallel()
 	j := job{year: "2023"}
 	msg := crossrefMessage{Published: crossrefDate{DateParts: [][]int{{2023}}}}
 	assert.Nil(t, j.diffYear("article", msg))
@@ -275,6 +296,7 @@ func TestJobDiffYear(t *testing.T) {
 }
 
 func TestJobDiffYearNotRequired(t *testing.T) {
+	t.Parallel()
 	j := job{year: "2023"}
 	msg := crossrefMessage{Published: crossrefDate{DateParts: [][]int{{2022}}}}
 	assert.Nil(t, j.diffYear("misc", msg))
@@ -286,6 +308,7 @@ func TestJobDiffYearNotRequired(t *testing.T) {
 // Its building blocks (makeRequest, header setting) are tested separately.
 
 func TestCheckDOIWithRetry_OK(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -294,11 +317,12 @@ func TestCheckDOIWithRetry_OK(t *testing.T) {
 	cfg := &Config{client: srv.Client(), maxRetries: 3}
 	// We can't redirect checkDOI's hardcoded URL, so we test via makeRequest directly.
 	res := makeRequest(cfg, http.MethodHead, srv.URL+"/test")
-	assert.NoError(t, res.err)
+	require.NoError(t, res.err)
 	assert.Equal(t, http.StatusOK, res.statusCode)
 }
 
 func TestMakeRequest_HEAD(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodHead, r.Method)
 		w.WriteHeader(http.StatusOK)
@@ -307,11 +331,12 @@ func TestMakeRequest_HEAD(t *testing.T) {
 
 	cfg := &Config{client: srv.Client()}
 	res := makeRequest(cfg, http.MethodHead, srv.URL)
-	assert.NoError(t, res.err)
+	require.NoError(t, res.err)
 	assert.Equal(t, http.StatusOK, res.statusCode)
 }
 
 func TestMakeRequest_GET(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		w.WriteHeader(http.StatusOK)
@@ -320,11 +345,12 @@ func TestMakeRequest_GET(t *testing.T) {
 
 	cfg := &Config{client: srv.Client()}
 	res := makeRequest(cfg, http.MethodGet, srv.URL)
-	assert.NoError(t, res.err)
+	require.NoError(t, res.err)
 	assert.Equal(t, http.StatusOK, res.statusCode)
 }
 
 func TestCheckURL_FallsBackToGET(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -336,11 +362,12 @@ func TestCheckURL_FallsBackToGET(t *testing.T) {
 
 	cfg := &Config{client: srv.Client()}
 	res := checkURL(cfg, srv.URL)
-	assert.NoError(t, res.err)
+	require.NoError(t, res.err)
 	assert.Equal(t, http.StatusOK, res.statusCode)
 }
 
 func TestCheckURLWithRetry_OK(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -352,6 +379,7 @@ func TestCheckURLWithRetry_OK(t *testing.T) {
 }
 
 func TestCheckURLWithRetry_Dead(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -364,6 +392,7 @@ func TestCheckURLWithRetry_Dead(t *testing.T) {
 }
 
 func TestCheckURLWithRetry_Forbidden(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 	}))
@@ -376,6 +405,7 @@ func TestCheckURLWithRetry_Forbidden(t *testing.T) {
 }
 
 func TestCheckURLWithRetry_ServerError(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -388,6 +418,7 @@ func TestCheckURLWithRetry_ServerError(t *testing.T) {
 }
 
 func TestFetchCrossRefMessage_OK(t *testing.T) {
+	t.Parallel()
 	msg := crossrefResponse{
 		Message: crossrefMessage{
 			Title:  []string{"Test Title"},
@@ -407,11 +438,12 @@ func TestFetchCrossRefMessage_OK(t *testing.T) {
 	// fetchCrossRefMessage hardcodes the crossref URL, so we test makeRequest instead.
 	// Verify JSON decode path via a direct call simulation:
 	res := makeRequest(cfg, http.MethodGet, srv.URL)
-	assert.NoError(t, res.err)
+	require.NoError(t, res.err)
 	assert.Equal(t, http.StatusOK, res.statusCode)
 }
 
 func TestCheckMetadata_NoIssues(t *testing.T) {
+	t.Parallel()
 	cr := crossrefResponse{
 		Message: crossrefMessage{
 			Title:     []string{"Test Title"},
@@ -432,6 +464,7 @@ func TestCheckMetadata_NoIssues(t *testing.T) {
 }
 
 func TestProcessJob_NoDOI(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -448,6 +481,7 @@ func TestProcessJob_NoDOI(t *testing.T) {
 }
 
 func TestProcessJob_WithURL(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
