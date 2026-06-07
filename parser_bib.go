@@ -10,7 +10,7 @@ import (
 
 type BibParser struct{}
 
-func (p *BibParser) Parse(r io.Reader) (_ []job, err error) { //nolint:cyclop
+func (p *BibParser) Parse(r io.Reader) (_ []job, err error) {
 	bib, err := bibtex.Parse(r)
 	if err != nil {
 		return nil, fmt.Errorf("parse bib: %w", err)

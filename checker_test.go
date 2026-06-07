@@ -153,8 +153,8 @@ func TestFormatCrossRefAuthors(t *testing.T) {
 func TestCrossrefDateYear(t *testing.T) {
 	assert.Equal(t, "2023", crossrefDate{DateParts: [][]int{{2023, 1, 15}}}.year())
 	assert.Equal(t, "2023", crossrefDate{DateParts: [][]int{{2023}}}.year())
-	assert.Equal(t, "", crossrefDate{DateParts: [][]int{}}.year())
-	assert.Equal(t, "", crossrefDate{}.year())
+	assert.Empty(t, crossrefDate{DateParts: [][]int{}}.year())
+	assert.Empty(t, crossrefDate{}.year())
 }
 
 // --- IssueKind.String() ---
@@ -202,8 +202,8 @@ func TestIssueRef(t *testing.T) {
 	assert.Equal(t, "https://example.com", issueRef(res, Issue{Kind: IssueURLDead}))
 	assert.Equal(t, "https://example.com", issueRef(res, Issue{Kind: IssueURLError}))
 	assert.Equal(t, "https://example.com", issueRef(res, Issue{Kind: IssueURLForbidden}))
-	assert.Equal(t, "", issueRef(res, Issue{Kind: IssueNoDOI}))
-	assert.Equal(t, "", issueRef(res, Issue{Kind: IssueInvalidDOI}))
+	assert.Empty(t, issueRef(res, Issue{Kind: IssueNoDOI}))
+	assert.Empty(t, issueRef(res, Issue{Kind: IssueInvalidDOI}))
 	assert.Equal(t, "10.1/x", issueRef(res, Issue{Kind: IssueDOINotFound}))
 	assert.Equal(t, "10.1/x", issueRef(res, Issue{Kind: IssueNetworkError}))
 }
