@@ -45,8 +45,8 @@ func main() {
 	maxRetries := flag.Int("retry", 3, "Max retries when fetching DOI data on rate limit (429)") //nolint: mnd
 	flag.Parse()
 
-	if *verify && *email == "" {
-		fmt.Fprintln(os.Stderr, "hint: running -verify without -email may hit Crossref rate limits; consider adding -email <your@email.com>")
+	if *nWorker > 1 && *email == "" {
+		fmt.Fprintln(os.Stderr, diffStyle.Render("hint: running with -n > 1 without -email may hit Crossref rate limits; consider adding -email <your@email.com>"))
 	}
 
 	config := NewConfig(*email, *verbose, *checkURLs, *verify, *nWorker, *maxRetries)
